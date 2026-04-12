@@ -53,13 +53,18 @@ const getQuizStatsMap = async (quizIds) => {
 };
 
 const createTeacher = asyncHandler(async (req, res) => {
-  const { name, email } = req.body;
+  const { name, email, password, institute } = req.body;
 
-  if (!name || !email) {
-    throw new AppError("name and email are required", 400);
+  if (!name || !email || !password || !institute) {
+    throw new AppError("name, email, password, and institute are required", 400);
   }
 
-  const teacher = await Teacher.create({ name, email });
+  const existingTeacher = await Teacher.findOne({ email });
+  if (existingTeacher) {
+    throw new AppError("Email already registered", 409);
+  }
+
+  const teacher = await Teacher.create({ name, email, password, institute });
 
   res.status(201).json({
     status: "success",
@@ -459,6 +464,55 @@ const getTeacherNotifications = asyncHandler(async (req, res) => {
   });
 });
 
+const getTeacherProfile = asyncHandler(async (req, res) => {
+  const { teacherId } = req.params;
+
+  const teacher = await Teacher.findById(teacherId).select("-password");
+  if (!teacher) {
+    throw new AppError("Teacher not found", 404);
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: teacher,
+  });
+});
+
+const updateTeacherProfile = asyncHandler(async (req, res) => {
+  const { teacherId } = req.params;
+  const {
+    name,
+    department,
+    employeeId,
+    profilePicture,
+    phone,
+  } = req.body;
+
+  // Build update object with only provided fields
+  const updateData = {};
+  if (name) updateData.name = name;
+  if (department) updateData.department = department;
+  if (employeeId) updateData.employeeId = employeeId;
+  if (profilePicture) updateData.profilePicture = profilePicture;
+  if (phone) updateData.phone = phone;
+
+  const teacher = await Teacher.findByIdAndUpdate(
+    teacherId,
+    updateData,
+    { new: true, runValidators: true }
+  );
+
+  if (!teacher) {
+    throw new AppError("Teacher not found", 404);
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Profile updated successfully",
+    data: teacher,
+  });
+});
+
 module.exports = {
   createTeacher,
   createQuiz,
@@ -469,4 +523,6 @@ module.exports = {
   publishQuiz,
   getQuizAttempts,
   getTeacherNotifications,
+  getTeacherProfile,
+  updateTeacherProfile,
 };

@@ -11,6 +11,8 @@ const {
   publishQuiz,
   getQuizAttempts,
   getTeacherNotifications,
+  getTeacherProfile,
+  updateTeacherProfile,
 } = require("../controllers/teacherController");
 
 const router = express.Router();
@@ -25,5 +27,7 @@ router.patch("/:teacherId/quizzes/:quizId", updateQuiz);
 router.patch("/:teacherId/quizzes/:quizId/publish", publishQuiz);
 router.get("/:teacherId/quizzes/:quizId/attempts", getQuizAttempts);
 router.get("/:teacherId/notifications", getTeacherNotifications);
+router.get("/:teacherId/profile", getTeacherProfile);
+router.patch("/:teacherId/profile", updateTeacherProfile);
 
 module.exports = router;

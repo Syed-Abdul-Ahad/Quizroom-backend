@@ -14,13 +14,18 @@ const examConfig = require("../patterns/singleton/examConfig");
 const { emitEvent } = require("../services/notificationService");
 
 const createStudent = asyncHandler(async (req, res) => {
-  const { name, email } = req.body;
+  const { name, email, password, institute } = req.body;
 
-  if (!name || !email) {
-    throw new AppError("name and email are required", 400);
+  if (!name || !email || !password || !institute) {
+    throw new AppError("name, email, password, and institute are required", 400);
   }
 
-  const student = await Student.create({ name, email });
+  const existingStudent = await Student.findOne({ email });
+  if (existingStudent) {
+    throw new AppError("Email already registered", 409);
+  }
+
+  const student = await Student.create({ name, email, password, institute });
 
   res.status(201).json({
     status: "success",
@@ -206,6 +211,57 @@ const getStudentNotifications = asyncHandler(async (req, res) => {
   });
 });
 
+const getStudentProfile = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+
+  const student = await Student.findById(studentId).select("-password");
+  if (!student) {
+    throw new AppError("Student not found", 404);
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: student,
+  });
+});
+
+const updateStudentProfile = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const {
+    name,
+    department,
+    studentId: studentIdValue,
+    profilePicture,
+    bio,
+    phone,
+  } = req.body;
+
+  // Build update object with only provided fields
+  const updateData = {};
+  if (name) updateData.name = name;
+  if (department) updateData.department = department;
+  if (studentIdValue) updateData.studentId = studentIdValue;
+  if (profilePicture) updateData.profilePicture = profilePicture;
+  if (bio) updateData.bio = bio;
+  if (phone) updateData.phone = phone;
+
+  const student = await Student.findByIdAndUpdate(
+    studentId,
+    updateData,
+    { new: true, runValidators: true }
+  );
+
+  if (!student) {
+    throw new AppError("Student not found", 404);
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Profile updated successfully",
+    data: student,
+  });
+});
+
 module.exports = {
   createStudent,
   getPublishedQuizzes,
@@ -213,4 +269,6 @@ module.exports = {
   submitAttempt,
   getStudentAttempts,
   getStudentNotifications,
+  getStudentProfile,
+  updateStudentProfile,
 };
