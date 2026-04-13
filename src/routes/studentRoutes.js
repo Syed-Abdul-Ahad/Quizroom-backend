@@ -1,4 +1,5 @@
 const express = require("express");
+const courseRoutes = require("./courseRoutes");
 
 const {
   createStudent,
@@ -14,6 +15,7 @@ const {
 const router = express.Router();
 
 router.post("/", createStudent);
+router.use("/:studentId/courses", courseRoutes);
 router.get("/quizzes", getPublishedQuizzes);
 router.get("/quizzes/:quizId", getPublishedQuizById);
 router.post("/:studentId/quizzes/:quizId/attempts", submitAttempt);

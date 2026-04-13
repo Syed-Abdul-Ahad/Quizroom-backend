@@ -18,11 +18,24 @@ const courseSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    courseCode: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+      uppercase: true,
+    },
     status: {
       type: String,
       enum: ["ACTIVE", "ARCHIVED"],
       default: "ACTIVE",
     },
+    students: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Student",
+      },
+    ],
   },
   {
     timestamps: true,
