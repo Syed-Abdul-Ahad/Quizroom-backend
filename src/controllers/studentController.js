@@ -168,27 +168,32 @@ const submitAttempt = asyncHandler(async (req, res) => {
 const getStudentAttempts = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
 
-  const student = await Student.findById(studentId);
-  if (!student) {
-    throw new AppError("Student not found", 404);
+  try {
+    const student = await Student.findById(studentId);
+    if (!student) {
+      throw new AppError("Student not found", 404);
+    }
+
+    const attempts = await Attempt.find({ student: studentId })
+    .populate("quiz", "title description course totalMarks durationMinutes questions")
+
+    if (!attempts) {
+      return res.status(200).json({
+        status: "success",
+        results: 0,
+        data: [],
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      results: attempts.length,
+      data: attempts,
+    });
+  } catch (error) {
+    console.error("Error in getStudentAttempts:", error);
+    throw error;
   }
-
-  const attempts = await Attempt.find({ student: studentId })
-    .populate({
-      path: "quiz",
-      select: "title description course",
-      populate: {
-        path: "course",
-        select: "title",
-      },
-    })
-    .sort({ createdAt: -1 });
-
-  res.status(200).json({
-    status: "success",
-    results: attempts.length,
-    data: attempts,
-  });
 });
 
 const getStudentNotifications = asyncHandler(async (req, res) => {

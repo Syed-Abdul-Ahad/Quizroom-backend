@@ -40,7 +40,7 @@ const getCourseQuizzes = asyncHandler(async (req, res) => {
   }
 
   const quizzes = await Quiz.find({ course: courseId })
-    .select("title description durationMinutes totalMarks isPublished createdAt questions")
+    .select("title description durationMinutes totalMarks deadline isPublished createdAt questions")
     .lean();
 
   // Add additional data for each quiz
@@ -57,6 +57,7 @@ const getCourseQuizzes = asyncHandler(async (req, res) => {
         description: quiz.description,
         durationMinutes: quiz.durationMinutes,
         totalMarks: quiz.totalMarks,
+        deadline: quiz.deadline,
         isPublished: quiz.isPublished,
         questionsCount: quiz.questions?.length || 0,
         attemptsCount: attempts.length,
