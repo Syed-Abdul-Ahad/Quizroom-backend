@@ -40,6 +40,12 @@ const getQuizStatsMap = async (quizIds) => {
         _id: "$quiz",
         attemptsCount: { $sum: 1 },
         avgScore: { $avg: "$percentage" },
+        pendingCount: {
+          $sum: { $cond: [{ $eq: ["$reviewedAt", null] }, 1, 0] },
+        },
+        reviewedAvgScore: {
+          $avg: { $cond: [{ $ne: ["$reviewedAt", null] }, "$percentage", null] },
+        },
       },
     },
   ]);
@@ -48,6 +54,8 @@ const getQuizStatsMap = async (quizIds) => {
     stats.map((item) => [String(item._id), {
       attemptsCount: item.attemptsCount,
       avgScore: Number((item.avgScore || 0).toFixed(2)),
+      pendingCount: item.pendingCount || 0,
+      reviewedAvgScore: Number((item.reviewedAvgScore || 0).toFixed(2)),
     }])
   );
 };
@@ -422,6 +430,73 @@ const publishQuiz = asyncHandler(async (req, res) => {
   });
 });
 
+const updateQuizAttemptReview = asyncHandler(async (req, res) => {
+  const { teacherId, quizId, attemptId } = req.params;
+  const { responses } = req.body;
+
+  const quiz = await Quiz.findOne({ _id: quizId, teacher: teacherId });
+  if (!quiz) {
+    throw new AppError("Quiz not found for this teacher", 404);
+  }
+
+  const attempt = await Attempt.findOne({ _id: attemptId, quiz: quizId }).populate(
+    "student",
+    "name email"
+  );
+  if (!attempt) {
+    throw new AppError("Attempt not found for this quiz", 404);
+  }
+
+  if (!Array.isArray(responses)) {
+    throw new AppError("responses must be an array", 400);
+  }
+
+  const responseMap = new Map(
+    responses.map((response) => [String(response.questionId), response])
+  );
+
+  attempt.responses = attempt.responses.map((existingResponse) => {
+    const update = responseMap.get(String(existingResponse.questionId));
+
+    if (!update) {
+      return existingResponse;
+    }
+
+    return {
+      ...existingResponse.toObject(),
+      obtainedPoints:
+        update.obtainedPoints !== undefined
+          ? Number(update.obtainedPoints)
+          : existingResponse.obtainedPoints,
+      remarks:
+        update.remarks !== undefined
+          ? String(update.remarks)
+          : existingResponse.remarks || "",
+    };
+  });
+
+  const totalScore = attempt.responses.reduce(
+    (sum, response) => sum + Number(response.obtainedPoints || 0),
+    0
+  );
+  const maxScore = quiz.questions.reduce(
+    (sum, question) => sum + Number(question.points || 0),
+    0
+  );
+
+  attempt.score = Number(totalScore.toFixed(2));
+  attempt.maxScore = maxScore;
+  attempt.percentage = maxScore > 0 ? Number(((attempt.score / maxScore) * 100).toFixed(2)) : 0;
+  attempt.reviewedAt = new Date();
+
+  await attempt.save();
+
+  res.status(200).json({
+    status: "success",
+    data: attempt,
+  });
+});
+
 const getQuizAttempts = asyncHandler(async (req, res) => {
   const { teacherId, quizId } = req.params;
 
@@ -522,6 +597,7 @@ module.exports = {
   updateQuiz,
   publishQuiz,
   getQuizAttempts,
+  updateQuizAttemptReview,
   getTeacherNotifications,
   getTeacherProfile,
   updateTeacherProfile,

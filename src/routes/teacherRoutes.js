@@ -10,6 +10,7 @@ const {
   updateQuiz,
   publishQuiz,
   getQuizAttempts,
+  updateQuizAttemptReview,
   getTeacherNotifications,
   getTeacherProfile,
   updateTeacherProfile,
@@ -26,6 +27,7 @@ router.get("/:teacherId/quizzes/:quizId", getTeacherQuizById);
 router.patch("/:teacherId/quizzes/:quizId", updateQuiz);
 router.patch("/:teacherId/quizzes/:quizId/publish", publishQuiz);
 router.get("/:teacherId/quizzes/:quizId/attempts", getQuizAttempts);
+router.patch("/:teacherId/quizzes/:quizId/attempts/:attemptId", updateQuizAttemptReview);
 router.get("/:teacherId/notifications", getTeacherNotifications);
 router.get("/:teacherId/profile", getTeacherProfile);
 router.patch("/:teacherId/profile", updateTeacherProfile);

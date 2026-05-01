@@ -231,10 +231,52 @@ const logout = asyncHandler(async (req, res) => {
   });
 });
 
+// Verify Token
+const verifyToken = asyncHandler(async (req, res) => {
+  // The authMiddleware should have already verified the token
+  // If we reach here, the token is valid
+  const token = req.headers.authorization?.split(" ")[1];
+  
+  if (!token) {
+    throw new AppError("No token provided", 401);
+  }
+
+  // Verify and decode token
+  const decoded = jwt.verify(token, JWT_SECRET);
+  
+  // Fetch user data based on role
+  let user;
+  if (decoded.role === "student") {
+    user = await Student.findById(decoded.userId);
+  } else if (decoded.role === "teacher") {
+    user = await Teacher.findById(decoded.userId);
+  } else {
+    throw new AppError("Invalid token role", 401);
+  }
+
+  if (!user) {
+    throw new AppError("User not found", 401);
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Token is valid",
+    data: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      institute: user.institute,
+      role: decoded.role,
+    },
+    token,
+  });
+});
+
 module.exports = {
   registerStudent,
   registerTeacher,
   loginStudent,
   loginTeacher,
   logout,
+  verifyToken,
 };

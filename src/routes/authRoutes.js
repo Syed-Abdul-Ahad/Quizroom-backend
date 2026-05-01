@@ -5,7 +5,9 @@ const {
   loginStudent,
   loginTeacher,
   logout,
+  verifyToken,
 } = require("../controllers/authController");
+const { verifyAuth } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
@@ -19,5 +21,8 @@ router.post("/teacher/login", loginTeacher);
 
 // Logout (same for both)
 router.post("/logout", logout);
+
+// Verify token (protected route)
+router.get("/verify", verifyAuth, verifyToken);
 
 module.exports = router;

@@ -53,18 +53,13 @@ const studentSchema = new mongoose.Schema(
 );
 
 // Hash password before saving
-studentSchema.pre("save", async function (next) {
+studentSchema.pre("save", async function () {
   if (!this.isModified("password")) {
-    return next();
+    return;
   }
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    return next();
-  } catch (error) {
-    return next(error);
-  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Add method to compare passwords

@@ -14,6 +14,10 @@ const responseSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    remarks: {
+      type: String,
+      default: "",
+    },
   },
   { _id: false }
 );
@@ -58,6 +62,10 @@ const attemptSchema = new mongoose.Schema(
     gradedAt: {
       type: Date,
       default: Date.now,
+    },
+    reviewedAt: {
+      type: Date,
+      default: null,
     },
   },
   {
