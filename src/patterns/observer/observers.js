@@ -40,21 +40,34 @@ class StudentObserver {
 
 class TeacherObserver {
   async update(eventName, payload) {
-    if (eventName !== "ATTEMPT_SUBMITTED") {
+    if (eventName === "ATTEMPT_SUBMITTED") {
+      await Notification.create({
+        recipientType: "Teacher",
+        recipientId: payload.teacherId,
+        eventType: eventName,
+        message: `A student submitted \"${payload.quizTitle}\". Score: ${payload.score}/${payload.maxScore}.`,
+        metadata: {
+          quizId: payload.quizId,
+          attemptId: payload.attemptId,
+          studentId: payload.studentId,
+        },
+      });
       return;
     }
 
-    await Notification.create({
-      recipientType: "Teacher",
-      recipientId: payload.teacherId,
-      eventType: eventName,
-      message: `A student submitted \"${payload.quizTitle}\". Score: ${payload.score}/${payload.maxScore}.`,
-      metadata: {
-        quizId: payload.quizId,
-        attemptId: payload.attemptId,
-        studentId: payload.studentId,
-      },
-    });
+    if (eventName === "STUDENT_JOINED") {
+      await Notification.create({
+        recipientType: "Teacher",
+        recipientId: payload.teacherId,
+        eventType: eventName,
+        message: `${payload.studentName} has enrolled in \"${payload.courseTitle}\".`,
+        metadata: {
+          courseId: payload.courseId,
+          studentId: payload.studentId,
+        },
+      });
+      return;
+    }
   }
 }
 

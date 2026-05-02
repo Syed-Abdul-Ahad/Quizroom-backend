@@ -56,6 +56,45 @@ const getPublishedQuizzes = asyncHandler(async (req, res) => {
   });
 });
 
+// Enhanced handler with logging (kept for debug; can be removed later)
+const getPublishedQuizzes_debug = asyncHandler(async (req, res) => {
+  const { courseId } = req.query;
+  const filter = { isPublished: true };
+
+  console.log('getPublishedQuizzes_debug called with query:', req.query);
+
+  if (courseId) {
+    filter.course = courseId;
+  }
+
+  try {
+    console.log('Query filter for published quizzes:', filter);
+    const quizzes = await Quiz.find(filter)
+      .select(
+        "title description teacher course gradingStrategy strategies durationMinutes totalMarks deadline createdAt"
+      )
+      .populate("teacher", "name email")
+      .populate("course", "title description status")
+      .sort({ createdAt: -1 });
+    // Normalize quizzes to avoid runtime errors from missing fields or schema virtuals
+    const safeQuizzes = (quizzes || []).map((q) => {
+      // Convert to plain object without virtuals to avoid virtual getters accessing undefined fields
+      const obj = q && typeof q.toObject === 'function' ? q.toObject({ virtuals: false }) : q || {};
+      if (!Array.isArray(obj.questions)) obj.questions = [];
+      return obj;
+    });
+
+    res.status(200).json({
+      status: "success",
+      results: safeQuizzes.length,
+      data: safeQuizzes,
+    });
+  } catch (err) {
+    console.error('Error in getPublishedQuizzes_debug:', err);
+    throw err;
+  }
+});
+
 const getPublishedQuizById = asyncHandler(async (req, res) => {
   const { quizId } = req.params;
 
@@ -270,6 +309,7 @@ const updateStudentProfile = asyncHandler(async (req, res) => {
 module.exports = {
   createStudent,
   getPublishedQuizzes,
+  getPublishedQuizzes_debug,
   getPublishedQuizById,
   submitAttempt,
   getStudentAttempts,

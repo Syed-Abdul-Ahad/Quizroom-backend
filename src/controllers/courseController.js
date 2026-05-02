@@ -5,6 +5,7 @@ const Quiz = require("../models/Quiz");
 const AppError = require("../utils/AppError");
 const asyncHandler = require("../utils/asyncHandler");
 const { generateCourseCode } = require("../utils/courseCodeGenerator");
+const { emitEvent } = require("../services/notificationService");
 
 const createCourse = asyncHandler(async (req, res) => {
   const { teacherId } = req.params;
@@ -150,6 +151,19 @@ const joinCourse = asyncHandler(async (req, res) => {
   // Add student to course
   course.students.push(studentId);
   await course.save();
+
+  // Notify teacher about new enrollment (observer)
+  try {
+    await emitEvent("STUDENT_JOINED", {
+      studentId: student._id,
+      studentName: student.name,
+      courseId: course._id,
+      courseTitle: course.title,
+      teacherId: course.teacher,
+    });
+  } catch (err) {
+    console.error("Failed to emit STUDENT_JOINED event:", err);
+  }
 
   res.status(200).json({
     status: "success",

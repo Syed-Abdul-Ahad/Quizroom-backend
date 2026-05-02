@@ -4,6 +4,7 @@ const courseRoutes = require("./courseRoutes");
 const {
   createStudent,
   getPublishedQuizzes,
+  getPublishedQuizzes_debug,
   getPublishedQuizById,
   submitAttempt,
   getStudentAttempts,
@@ -16,7 +17,7 @@ const router = express.Router();
 
 router.post("/", createStudent);
 router.use("/:studentId/courses", courseRoutes);
-router.get("/quizzes", getPublishedQuizzes);
+router.get("/quizzes", getPublishedQuizzes_debug);
 router.get("/quizzes/:quizId", getPublishedQuizById);
 router.post("/:studentId/quizzes/:quizId/attempts", submitAttempt);
 router.get("/:studentId/attempts", getStudentAttempts);

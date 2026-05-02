@@ -11,6 +11,7 @@ const initializeObservers = () => {
   notificationCenter.subscribe("QUIZ_PUBLISHED", new StudentObserver());
   notificationCenter.subscribe("ATTEMPT_SUBMITTED", new StudentObserver());
   notificationCenter.subscribe("ATTEMPT_SUBMITTED", new TeacherObserver());
+  notificationCenter.subscribe("STUDENT_JOINED", new TeacherObserver());
 
   initialized = true;
 };
