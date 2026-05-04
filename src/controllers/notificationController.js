@@ -3,6 +3,7 @@ const Student = require("../models/Student");
 const Course = require("../models/Course");
 const asyncHandler = require("../utils/asyncHandler");
 const AppError = require("../utils/AppError");
+const mongoose = require("mongoose");
 
 const markAsRead = asyncHandler(async (req, res) => {
   const { notificationId } = req.params;
@@ -30,7 +31,10 @@ const markAllRead = asyncHandler(async (req, res) => {
     throw new AppError("recipientType and recipientId are required", 400);
   }
 
-  await Notification.updateMany({ recipientType, recipientId, read: false }, { $set: { read: true } });
+  await Notification.updateMany(
+    { recipientType, recipientId: new mongoose.Types.ObjectId(recipientId), read: false },
+    { $set: { read: true } }
+  );
 
   res.status(200).json({ status: "success", message: "Marked all as read" });
 });
@@ -48,7 +52,7 @@ const deleteNotification = asyncHandler(async (req, res) => {
     throw new AppError("Not authorized to delete this notification", 403);
   }
 
-  await notification.remove();
+  await Notification.findByIdAndDelete(notificationId);
 
   res.status(200).json({ status: "success", message: "Deleted" });
 });

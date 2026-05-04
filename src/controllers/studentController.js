@@ -237,16 +237,22 @@ const getStudentAttempts = asyncHandler(async (req, res) => {
 
 const getStudentNotifications = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
+  const mongoose = require("mongoose");
 
+  console.log('[getStudentNotifications] Called with studentId:', studentId);
   const student = await Student.findById(studentId);
   if (!student) {
     throw new AppError("Student not found", 404);
   }
 
+  const studentObjectId = new mongoose.Types.ObjectId(studentId);
+  console.log('[getStudentNotifications] Querying with ObjectId:', studentObjectId);
   const notifications = await Notification.find({
     recipientType: "Student",
-    recipientId: studentId,
+    recipientId: studentObjectId,
   }).sort({ createdAt: -1 });
+
+  console.log('[getStudentNotifications] Found notifications:', notifications.length);
 
   res.status(200).json({
     status: "success",

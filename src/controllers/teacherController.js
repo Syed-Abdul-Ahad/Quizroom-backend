@@ -421,6 +421,7 @@ const publishQuiz = asyncHandler(async (req, res) => {
     await emitEvent("QUIZ_PUBLISHED", {
       quizId: quiz._id,
       quizTitle: quiz.title,
+      courseId: quiz.course,
     });
   }
 
@@ -491,6 +492,20 @@ const updateQuizAttemptReview = asyncHandler(async (req, res) => {
 
   await attempt.save();
 
+  // Emit ATTEMPT_GRADED event to notify student
+  try {
+    await emitEvent("ATTEMPT_GRADED", {
+      attemptId: attempt._id,
+      quizId: quiz._id,
+      quizTitle: quiz.title,
+      studentId: attempt.student._id,
+      score: attempt.score,
+      maxScore: attempt.maxScore,
+    });
+  } catch (err) {
+    console.error("[updateQuizAttemptReview] Failed to emit ATTEMPT_GRADED event:", err);
+  }
+
   res.status(200).json({
     status: "success",
     data: attempt,
@@ -521,16 +536,22 @@ const getQuizAttempts = asyncHandler(async (req, res) => {
 
 const getTeacherNotifications = asyncHandler(async (req, res) => {
   const { teacherId } = req.params;
+  const mongoose = require("mongoose");
 
+  console.log('[getTeacherNotifications] Called with teacherId:', teacherId);
   const teacher = await Teacher.findById(teacherId);
   if (!teacher) {
     throw new AppError("Teacher not found", 404);
   }
 
+  const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
+  console.log('[getTeacherNotifications] Querying with ObjectId:', teacherObjectId);
   const notifications = await Notification.find({
     recipientType: "Teacher",
-    recipientId: teacherId,
+    recipientId: teacherObjectId,
   }).sort({ createdAt: -1 });
+
+  console.log('[getTeacherNotifications] Found notifications:', notifications.length);
 
   res.status(200).json({
     status: "success",

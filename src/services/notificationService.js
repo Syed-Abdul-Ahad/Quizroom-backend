@@ -10,7 +10,7 @@ const initializeObservers = () => {
   console.log("[NotificationService] Initializing observers...");
 
   notificationCenter.subscribe("QUIZ_PUBLISHED", new StudentObserver());
-  notificationCenter.subscribe("ATTEMPT_SUBMITTED", new StudentObserver());
+  notificationCenter.subscribe("ATTEMPT_GRADED", new StudentObserver());
 
   const teacherObserver = new TeacherObserver();
   notificationCenter.subscribe("ATTEMPT_SUBMITTED", teacherObserver);
