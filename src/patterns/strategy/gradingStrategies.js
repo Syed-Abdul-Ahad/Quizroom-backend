@@ -1,4 +1,11 @@
-class ExactMatchStrategy {
+// ========== GRADING STRATEGIES ==========
+class GradingStrategy {
+  gradeQuestion(question, answer) {
+    throw new Error("gradeQuestion() must be implemented by subclass");
+  }
+}
+
+class ExactMatchStrategy extends GradingStrategy {
   gradeQuestion(question, answer) {
     if (!question.isAutoGradable) {
       return 0;
@@ -28,8 +35,9 @@ class ExactMatchStrategy {
   }
 }
 
-class NegativeMarkingStrategy {
+class NegativeMarkingStrategy extends GradingStrategy {
   constructor(penaltyRatio = 0.25) {
+    super();
     this.penaltyRatio = penaltyRatio;
   }
 
@@ -74,36 +82,41 @@ class NegativeMarkingStrategy {
   }
 }
 
-class KeepOrderStrategy {
-  apply(questions) {
-    return [...questions];
+
+
+// ========== STRATEGY REGISTRIES (No more if-else!) ==========
+class GradingStrategyRegistry {
+  constructor() {
+    this.strategies = new Map();
+    this.registerDefaults();
   }
-}
 
-class RandomizeOrderStrategy {
-  apply(questions) {
-    const randomized = [...questions];
+  registerDefaults() {
+    this.register("EXACT_MATCH", new ExactMatchStrategy());
+    this.register("NEGATIVE_MARKING", new NegativeMarkingStrategy());
+  }
 
-    for (let i = randomized.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [randomized[i], randomized[j]] = [randomized[j], randomized[i]];
+  register(name, strategy) {
+    if (!strategy || typeof strategy.gradeQuestion !== "function") {
+      throw new Error("Strategy must implement gradeQuestion() method");
     }
+    this.strategies.set(name, strategy);
+  }
 
-    return randomized;
+  getStrategy(name) {
+    const strategy = this.strategies.get(name);
+    if (!strategy) {
+      console.warn(`[GradingStrategyRegistry] Strategy '${name}' not found, using EXACT_MATCH`);
+      return this.strategies.get("EXACT_MATCH");
+    }
+    return strategy;
   }
 }
 
-class SingleAttemptStrategy {
-  validate(existingAttempts) {
-    return existingAttempts === 0;
-  }
-}
 
-class MultipleAttemptStrategy {
-  validate() {
-    return true;
-  }
-}
+
+// ========== SINGLETON REGISTRY INSTANCES ==========
+const gradingStrategyRegistry = new GradingStrategyRegistry();
 
 const normalizeString = (value) => String(value || "").trim().toLowerCase();
 
@@ -127,27 +140,7 @@ const areStringArraysEqual = (first, second) => {
 };
 
 const buildGradingStrategy = (strategyName) => {
-  if (strategyName === "NEGATIVE_MARKING") {
-    return new NegativeMarkingStrategy();
-  }
-
-  return new ExactMatchStrategy();
-};
-
-const buildQuestionOrderStrategy = (randomizeQuestions) => {
-  if (randomizeQuestions) {
-    return new RandomizeOrderStrategy();
-  }
-
-  return new KeepOrderStrategy();
-};
-
-const buildAttemptPolicyStrategy = (allowMultipleAttempts) => {
-  if (allowMultipleAttempts) {
-    return new MultipleAttemptStrategy();
-  }
-
-  return new SingleAttemptStrategy();
+  return gradingStrategyRegistry.getStrategy(strategyName || "EXACT_MATCH");
 };
 
 const gradeQuizAttempt = (quiz, submittedResponses, strategy) => {
@@ -189,7 +182,5 @@ const gradeQuizAttempt = (quiz, submittedResponses, strategy) => {
 
 module.exports = {
   buildGradingStrategy,
-  buildQuestionOrderStrategy,
-  buildAttemptPolicyStrategy,
   gradeQuizAttempt,
 };

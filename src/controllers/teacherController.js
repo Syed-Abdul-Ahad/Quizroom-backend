@@ -12,13 +12,9 @@ const { emitEvent } = require("../services/notificationService");
 const parseBoolean = (value) => value === true || value === "true";
 
 const parseQuizStrategyOptions = (payload = {}) => {
-  const randomizeQuestions = parseBoolean(payload.randomizeQuestions);
-  const allowMultipleAttempts = parseBoolean(payload.allowMultipleAttempts);
   const negativeMarking = parseBoolean(payload.negativeMarking);
 
   return {
-    randomizeQuestions,
-    allowMultipleAttempts,
     negativeMarking,
     gradingStrategy: negativeMarking ? "NEGATIVE_MARKING" : "EXACT_MATCH",
   };
@@ -89,9 +85,8 @@ const createQuiz = asyncHandler(async (req, res) => {
     durationMinutes,
     totalMarks,
     deadline,
-    randomizeQuestions,
-    allowMultipleAttempts,
     negativeMarking,
+    isPublished,
     questions,
   } = req.body;
 
@@ -110,8 +105,6 @@ const createQuiz = asyncHandler(async (req, res) => {
   }
 
   const strategies = parseQuizStrategyOptions({
-    randomizeQuestions,
-    allowMultipleAttempts,
     negativeMarking,
   });
 
@@ -147,10 +140,9 @@ const createQuiz = asyncHandler(async (req, res) => {
         ? Number(totalMarks)
         : derivedTotalMarks,
     deadline: parsedDeadline,
+    isPublished: isPublished === true,
     gradingStrategy: strategies.gradingStrategy || examConfig.getDefaultGradingStrategy(),
     strategies: {
-      randomizeQuestions: strategies.randomizeQuestions,
-      allowMultipleAttempts: strategies.allowMultipleAttempts,
       negativeMarking: strategies.negativeMarking,
     },
     questions: normalizedQuestions,
@@ -293,8 +285,6 @@ const updateQuiz = asyncHandler(async (req, res) => {
     durationMinutes,
     totalMarks,
     deadline,
-    randomizeQuestions,
-    allowMultipleAttempts,
     negativeMarking,
   } = req.body;
 
@@ -323,21 +313,10 @@ const updateQuiz = asyncHandler(async (req, res) => {
     quiz.gradingStrategy = gradingStrategy;
   }
 
-  const hasStrategyPatch =
-    randomizeQuestions !== undefined ||
-    allowMultipleAttempts !== undefined ||
-    negativeMarking !== undefined;
+  const hasStrategyPatch = negativeMarking !== undefined;
 
   if (hasStrategyPatch) {
     const strategies = parseQuizStrategyOptions({
-      randomizeQuestions:
-        randomizeQuestions !== undefined
-          ? randomizeQuestions
-          : quiz.strategies?.randomizeQuestions,
-      allowMultipleAttempts:
-        allowMultipleAttempts !== undefined
-          ? allowMultipleAttempts
-          : quiz.strategies?.allowMultipleAttempts,
       negativeMarking:
         negativeMarking !== undefined
           ? negativeMarking
@@ -345,8 +324,6 @@ const updateQuiz = asyncHandler(async (req, res) => {
     });
 
     quiz.strategies = {
-      randomizeQuestions: strategies.randomizeQuestions,
-      allowMultipleAttempts: strategies.allowMultipleAttempts,
       negativeMarking: strategies.negativeMarking,
     };
     quiz.gradingStrategy = strategies.gradingStrategy;

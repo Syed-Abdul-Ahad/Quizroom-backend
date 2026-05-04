@@ -93,15 +93,7 @@ const quizSchema = new mongoose.Schema(
       default: "EXACT_MATCH",
     },
     strategies: {
-      randomizeQuestions: {
-        type: Boolean,
-        default: false,
-      },
       negativeMarking: {
-        type: Boolean,
-        default: false,
-      },
-      allowMultipleAttempts: {
         type: Boolean,
         default: false,
       },

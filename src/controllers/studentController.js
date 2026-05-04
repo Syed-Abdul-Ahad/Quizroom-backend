@@ -6,8 +6,6 @@ const AppError = require("../utils/AppError");
 const asyncHandler = require("../utils/asyncHandler");
 const {
   buildGradingStrategy,
-  buildQuestionOrderStrategy,
-  buildAttemptPolicyStrategy,
   gradeQuizAttempt,
 } = require("../patterns/strategy/gradingStrategies");
 const examConfig = require("../patterns/singleton/examConfig");
@@ -106,12 +104,7 @@ const getPublishedQuizById = asyncHandler(async (req, res) => {
     throw new AppError("Published quiz not found", 404);
   }
 
-  const questionOrderStrategy = buildQuestionOrderStrategy(
-    quiz.strategies?.randomizeQuestions
-  );
-  const orderedQuestions = questionOrderStrategy.apply(quiz.questions);
-
-  const safeQuestions = orderedQuestions.map((question) => ({
+  const safeQuestions = quiz.questions.map((question) => ({
     _id: question._id,
     type: question.type,
     prompt: question.prompt,
@@ -164,11 +157,7 @@ const submitAttempt = asyncHandler(async (req, res) => {
   }
 
   const existingAttempts = await Attempt.countDocuments({ quiz: quizId, student: studentId });
-  const attemptPolicy = buildAttemptPolicyStrategy(
-    quiz.strategies?.allowMultipleAttempts
-  );
-
-  if (!attemptPolicy.validate(existingAttempts)) {
+  if (existingAttempts > 0) {
     throw new AppError("Attempt already submitted for this quiz", 409);
   }
 

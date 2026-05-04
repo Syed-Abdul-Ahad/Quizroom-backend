@@ -55,172 +55,211 @@ const buildBaseQuestion = (question, type) => {
   };
 };
 
-const createSingleChoiceQuestion = (question) => {
-  const base = buildBaseQuestion(question, "MCQ_SINGLE");
-  const correctAnswer = toNormalizedString(question.correctAnswer);
-  const options = Array.isArray(question.options)
-    ? question.options.map((option) => toNormalizedString(option)).filter(Boolean)
-    : [];
+// ========== QUESTION TYPE FACTORIES ==========
+class QuestionTypeFactory {
+  create(question) {
+    throw new AppError("create() must be implemented by subclass", 500);
+  }
+}
 
-  if (options.length < 2) {
-    throw new AppError("MCQ_SINGLE requires at least 2 options", 400);
+class MCQSingleQuestionFactory extends QuestionTypeFactory {
+  create(question) {
+    const base = buildBaseQuestion(question, "MCQ_SINGLE");
+    const correctAnswer = toNormalizedString(question.correctAnswer);
+    const options = Array.isArray(question.options)
+      ? question.options.map((option) => toNormalizedString(option)).filter(Boolean)
+      : [];
+
+    if (options.length < 2) {
+      throw new AppError("MCQ_SINGLE requires at least 2 options", 400);
+    }
+
+    if (!options.includes(correctAnswer)) {
+      throw new AppError("MCQ_SINGLE correctAnswer must be one of the options", 400);
+    }
+
+    return {
+      ...base,
+      options,
+      correctAnswer,
+      isAutoGradable: true,
+    };
+  }
+}
+
+class MCQMultipleQuestionFactory extends QuestionTypeFactory {
+  create(question) {
+    const base = buildBaseQuestion(question, "MCQ_MULTIPLE");
+    const options = Array.isArray(question.options)
+      ? question.options.map((option) => toNormalizedString(option)).filter(Boolean)
+      : [];
+    const submittedCorrect = Array.isArray(question.correctAnswer)
+      ? question.correctAnswer.map((item) => toNormalizedString(item)).filter(Boolean)
+      : [];
+
+    if (options.length < 2) {
+      throw new AppError("MCQ_MULTIPLE requires at least 2 options", 400);
+    }
+
+    if (!submittedCorrect.length) {
+      throw new AppError("MCQ_MULTIPLE requires at least one correct answer", 400);
+    }
+
+    const invalid = submittedCorrect.find((answer) => !options.includes(answer));
+    if (invalid) {
+      throw new AppError("MCQ_MULTIPLE correctAnswer values must exist in options", 400);
+    }
+
+    const uniqueCorrect = [...new Set(submittedCorrect)];
+
+    return {
+      ...base,
+      options,
+      correctAnswer: uniqueCorrect,
+      isAutoGradable: true,
+    };
+  }
+}
+
+class TrueFalseQuestionFactory extends QuestionTypeFactory {
+  create(question) {
+    const base = buildBaseQuestion(question, "TRUE_FALSE");
+    const rawAnswer = toLowerTrim(question.correctAnswer);
+
+    if (!["true", "false"].includes(rawAnswer)) {
+      throw new AppError("TRUE_FALSE correctAnswer must be true or false", 400);
+    }
+
+    return {
+      ...base,
+      options: ["true", "false"],
+      correctAnswer: rawAnswer,
+      isAutoGradable: true,
+    };
+  }
+}
+
+class ShortAnswerQuestionFactory extends QuestionTypeFactory {
+  create(question) {
+    const base = buildBaseQuestion(question, "SHORT_ANSWER");
+    const correctAnswer = toNormalizedString(question.correctAnswer);
+    const isAutoGradable = Boolean(correctAnswer);
+
+    return {
+      ...base,
+      options: [],
+      correctAnswer: correctAnswer || null,
+      isAutoGradable,
+    };
+  }
+}
+
+class LongAnswerQuestionFactory extends QuestionTypeFactory {
+  create(question) {
+    const base = buildBaseQuestion(question, "LONG_ANSWER");
+
+    return {
+      ...base,
+      options: [],
+      correctAnswer: null,
+      isAutoGradable: false,
+    };
+  }
+}
+
+class FileUploadQuestionFactory extends QuestionTypeFactory {
+  create(question) {
+    const base = buildBaseQuestion(question, "FILE_UPLOAD");
+    const allowedFileTypes = Array.isArray(question.allowedFileTypes)
+      ? question.allowedFileTypes.map((item) => toNormalizedString(item)).filter(Boolean)
+      : [];
+
+    return {
+      ...base,
+      options: [],
+      correctAnswer: null,
+      isAutoGradable: false,
+      allowedFileTypes,
+    };
+  }
+}
+
+class NumericQuestionFactory extends QuestionTypeFactory {
+  create(question) {
+    const base = buildBaseQuestion(question, "NUMERIC");
+    const value = Number(question.correctAnswer);
+    const tolerance = Number(question.numericTolerance || 0);
+
+    if (Number.isNaN(value)) {
+      throw new AppError("NUMERIC correctAnswer must be a number", 400);
+    }
+
+    if (Number.isNaN(tolerance) || tolerance < 0) {
+      throw new AppError("NUMERIC numericTolerance must be a non-negative number", 400);
+    }
+
+    return {
+      ...base,
+      options: [],
+      correctAnswer: value,
+      isAutoGradable: true,
+      numericTolerance: tolerance,
+    };
+  }
+}
+
+// ========== FACTORY REGISTRY (No more if-else!) ==========
+class QuestionFactoryRegistry {
+  constructor() {
+    this.factories = new Map();
+    this.registerDefaults();
   }
 
-  if (!options.includes(correctAnswer)) {
-    throw new AppError("MCQ_SINGLE correctAnswer must be one of the options", 400);
+  registerDefaults() {
+    this.register("MCQ_SINGLE", new MCQSingleQuestionFactory());
+    this.register("MCQ_MULTIPLE", new MCQMultipleQuestionFactory());
+    this.register("TRUE_FALSE", new TrueFalseQuestionFactory());
+    this.register("SHORT_ANSWER", new ShortAnswerQuestionFactory());
+    this.register("LONG_ANSWER", new LongAnswerQuestionFactory());
+    this.register("FILE_UPLOAD", new FileUploadQuestionFactory());
+    this.register("NUMERIC", new NumericQuestionFactory());
   }
 
-  return {
-    ...base,
-    options,
-    correctAnswer,
-    isAutoGradable: true,
-  };
-};
-
-const createMultipleChoiceQuestion = (question) => {
-  const base = buildBaseQuestion(question, "MCQ_MULTIPLE");
-  const options = Array.isArray(question.options)
-    ? question.options.map((option) => toNormalizedString(option)).filter(Boolean)
-    : [];
-  const submittedCorrect = Array.isArray(question.correctAnswer)
-    ? question.correctAnswer.map((item) => toNormalizedString(item)).filter(Boolean)
-    : [];
-
-  if (options.length < 2) {
-    throw new AppError("MCQ_MULTIPLE requires at least 2 options", 400);
+  register(type, factory) {
+    if (!factory || typeof factory.create !== "function") {
+      throw new AppError("Factory must implement create() method", 500);
+    }
+    this.factories.set(type, factory);
   }
 
-  if (!submittedCorrect.length) {
-    throw new AppError("MCQ_MULTIPLE requires at least one correct answer", 400);
+  createQuestion(question) {
+    const type = toTypeKey(question.type);
+    const factory = this.factories.get(type);
+
+    if (!factory) {
+      throw new AppError(`No factory registered for question type: ${type}`, 400);
+    }
+
+    return factory.create(question);
   }
+}
 
-  const invalid = submittedCorrect.find((answer) => !options.includes(answer));
-  if (invalid) {
-    throw new AppError("MCQ_MULTIPLE correctAnswer values must exist in options", 400);
-  }
-
-  const uniqueCorrect = [...new Set(submittedCorrect)];
-
-  return {
-    ...base,
-    options,
-    correctAnswer: uniqueCorrect,
-    isAutoGradable: true,
-  };
-};
-
-const createTrueFalseQuestion = (question) => {
-  const base = buildBaseQuestion(question, "TRUE_FALSE");
-  const rawAnswer = toLowerTrim(question.correctAnswer);
-
-  if (!["true", "false"].includes(rawAnswer)) {
-    throw new AppError("TRUE_FALSE correctAnswer must be true or false", 400);
-  }
-
-  return {
-    ...base,
-    options: ["true", "false"],
-    correctAnswer: rawAnswer,
-    isAutoGradable: true,
-  };
-};
-
-const createShortAnswerQuestion = (question) => {
-  const base = buildBaseQuestion(question, "SHORT_ANSWER");
-  const correctAnswer = toNormalizedString(question.correctAnswer);
-  const isAutoGradable = Boolean(correctAnswer);
-
-  return {
-    ...base,
-    options: [],
-    correctAnswer: correctAnswer || null,
-    isAutoGradable,
-  };
-};
-
-const createLongAnswerQuestion = (question) => {
-  const base = buildBaseQuestion(question, "LONG_ANSWER");
-
-  return {
-    ...base,
-    options: [],
-    correctAnswer: null,
-    isAutoGradable: false,
-  };
-};
-
-const createFileUploadQuestion = (question) => {
-  const base = buildBaseQuestion(question, "FILE_UPLOAD");
-  const allowedFileTypes = Array.isArray(question.allowedFileTypes)
-    ? question.allowedFileTypes.map((item) => toNormalizedString(item)).filter(Boolean)
-    : [];
-
-  return {
-    ...base,
-    options: [],
-    correctAnswer: null,
-    isAutoGradable: false,
-    allowedFileTypes,
-  };
-};
-
-const createNumericQuestion = (question) => {
-  const base = buildBaseQuestion(question, "NUMERIC");
-  const value = Number(question.correctAnswer);
-  const tolerance = Number(question.numericTolerance || 0);
-
-  if (Number.isNaN(value)) {
-    throw new AppError("NUMERIC correctAnswer must be a number", 400);
-  }
-
-  if (Number.isNaN(tolerance) || tolerance < 0) {
-    throw new AppError("NUMERIC numericTolerance must be a non-negative number", 400);
-  }
-
-  return {
-    ...base,
-    options: [],
-    correctAnswer: value,
-    isAutoGradable: true,
-    numericTolerance: tolerance,
-  };
-};
+// ========== SINGLETON REGISTRY INSTANCE ==========
+const questionFactoryRegistry = new QuestionFactoryRegistry();
 
 const createQuestion = (question) => {
-  const type = toTypeKey(question.type);
-
-  if (type === "MCQ_SINGLE") {
-    return createSingleChoiceQuestion(question);
-  }
-
-  if (type === "MCQ_MULTIPLE") {
-    return createMultipleChoiceQuestion(question);
-  }
-
-  if (type === "TRUE_FALSE") {
-    return createTrueFalseQuestion(question);
-  }
-
-  if (type === "SHORT_ANSWER") {
-    return createShortAnswerQuestion(question);
-  }
-
-  if (type === "LONG_ANSWER") {
-    return createLongAnswerQuestion(question);
-  }
-
-  if (type === "FILE_UPLOAD") {
-    return createFileUploadQuestion(question);
-  }
-
-  if (type === "NUMERIC") {
-    return createNumericQuestion(question);
-  }
-
-  throw new AppError(`Unsupported question type: ${question.type}`, 400);
+  return questionFactoryRegistry.createQuestion(question);
 };
 
 module.exports = {
   createQuestion,
+  QuestionFactoryRegistry,
+  // Export factories for testing/extensibility
+  MCQSingleQuestionFactory,
+  MCQMultipleQuestionFactory,
+  TrueFalseQuestionFactory,
+  ShortAnswerQuestionFactory,
+  LongAnswerQuestionFactory,
+  FileUploadQuestionFactory,
+  NumericQuestionFactory,
 };
