@@ -43,7 +43,7 @@ const getPublishedQuizzes = asyncHandler(async (req, res) => {
 
   const quizzes = await Quiz.find(filter)
     .select(
-      "title description teacher course gradingStrategy strategies durationMinutes totalMarks deadline createdAt"
+      "title description teacher course gradingStrategy strategies durationMinutes totalMarks deadline createdAt isPublished questions"
     )
     .populate("teacher", "name email")
     .populate("course", "title description status")
@@ -71,7 +71,7 @@ const getPublishedQuizzes_debug = asyncHandler(async (req, res) => {
     console.log('Query filter for published quizzes:', filter);
     const quizzes = await Quiz.find(filter)
       .select(
-        "title description teacher course gradingStrategy strategies durationMinutes totalMarks deadline createdAt"
+        "title description teacher course gradingStrategy strategies durationMinutes totalMarks deadline createdAt isPublished questions"
       )
       .populate("teacher", "name email")
       .populate("course", "title description status")

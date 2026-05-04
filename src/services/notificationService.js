@@ -7,18 +7,28 @@ const initializeObservers = () => {
   if (initialized) {
     return;
   }
+  console.log("[NotificationService] Initializing observers...");
 
   notificationCenter.subscribe("QUIZ_PUBLISHED", new StudentObserver());
   notificationCenter.subscribe("ATTEMPT_SUBMITTED", new StudentObserver());
-  notificationCenter.subscribe("ATTEMPT_SUBMITTED", new TeacherObserver());
-  notificationCenter.subscribe("STUDENT_JOINED", new TeacherObserver());
+
+  const teacherObserver = new TeacherObserver();
+  notificationCenter.subscribe("ATTEMPT_SUBMITTED", teacherObserver);
+  notificationCenter.subscribe("STUDENT_JOINED", teacherObserver);
 
   initialized = true;
+  console.log("[NotificationService] Observers initialized.");
 };
 
 const emitEvent = async (eventName, payload) => {
   initializeObservers();
-  await notificationCenter.notify(eventName, payload);
+  try {
+    console.log(`[NotificationService] Emitting event: ${eventName}`, payload);
+    await notificationCenter.notify(eventName, payload);
+  } catch (err) {
+    console.error(`[NotificationService] Failed to notify observers for ${eventName}:`, err);
+    throw err;
+  }
 };
 
 module.exports = {

@@ -152,7 +152,7 @@ const joinCourse = asyncHandler(async (req, res) => {
   course.students.push(studentId);
   await course.save();
 
-  // Notify teacher about new enrollment (observer)
+  // Emit STUDENT_JOINED event for teacher notification
   try {
     await emitEvent("STUDENT_JOINED", {
       studentId: student._id,
