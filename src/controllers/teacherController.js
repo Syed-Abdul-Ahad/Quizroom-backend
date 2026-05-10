@@ -12,9 +12,11 @@ const { emitEvent } = require("../services/notificationService");
 const parseBoolean = (value) => value === true || value === "true";
 
 const parseQuizStrategyOptions = (payload = {}) => {
+  const randomizeQuestions = parseBoolean(payload.randomizeQuestions);
   const negativeMarking = parseBoolean(payload.negativeMarking);
 
   return {
+    randomizeQuestions,
     negativeMarking,
     gradingStrategy: negativeMarking ? "NEGATIVE_MARKING" : "EXACT_MATCH",
   };
@@ -85,6 +87,7 @@ const createQuiz = asyncHandler(async (req, res) => {
     durationMinutes,
     totalMarks,
     deadline,
+    randomizeQuestions,
     negativeMarking,
     isPublished,
     questions,
@@ -105,6 +108,7 @@ const createQuiz = asyncHandler(async (req, res) => {
   }
 
   const strategies = parseQuizStrategyOptions({
+    randomizeQuestions,
     negativeMarking,
   });
 
@@ -143,6 +147,7 @@ const createQuiz = asyncHandler(async (req, res) => {
     isPublished: isPublished === true,
     gradingStrategy: strategies.gradingStrategy || examConfig.getDefaultGradingStrategy(),
     strategies: {
+      randomizeQuestions: strategies.randomizeQuestions,
       negativeMarking: strategies.negativeMarking,
     },
     questions: normalizedQuestions,
@@ -285,6 +290,7 @@ const updateQuiz = asyncHandler(async (req, res) => {
     durationMinutes,
     totalMarks,
     deadline,
+    randomizeQuestions,
     negativeMarking,
   } = req.body;
 
@@ -309,14 +315,16 @@ const updateQuiz = asyncHandler(async (req, res) => {
     quiz.description = description;
   }
 
-  if (gradingStrategy !== undefined) {
-    quiz.gradingStrategy = gradingStrategy;
-  }
-
-  const hasStrategyPatch = negativeMarking !== undefined;
+  const hasStrategyPatch =
+    randomizeQuestions !== undefined ||
+    negativeMarking !== undefined;
 
   if (hasStrategyPatch) {
     const strategies = parseQuizStrategyOptions({
+      randomizeQuestions:
+        randomizeQuestions !== undefined
+          ? randomizeQuestions
+          : quiz.strategies?.randomizeQuestions,
       negativeMarking:
         negativeMarking !== undefined
           ? negativeMarking
@@ -324,6 +332,7 @@ const updateQuiz = asyncHandler(async (req, res) => {
     });
 
     quiz.strategies = {
+      randomizeQuestions: strategies.randomizeQuestions,
       negativeMarking: strategies.negativeMarking,
     };
     quiz.gradingStrategy = strategies.gradingStrategy;
@@ -586,6 +595,37 @@ const updateTeacherProfile = asyncHandler(async (req, res) => {
   });
 });
 
+const uploadTeacherProfilePicture = asyncHandler(async (req, res) => {
+  const { teacherId } = req.params;
+
+  if (!req.file) {
+    throw new AppError("No file uploaded", 400);
+  }
+
+  // Construct the full image URL with protocol and host
+  const imageUrl = `${req.protocol}://${req.get('host')}/uploads/profile-pictures/${req.file.filename}`;
+
+  // Update teacher with new profile picture URL
+  const teacher = await Teacher.findByIdAndUpdate(
+    teacherId,
+    { profilePicture: imageUrl },
+    { new: true, runValidators: true }
+  );
+
+  if (!teacher) {
+    throw new AppError("Teacher not found", 404);
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Profile picture uploaded successfully",
+    data: {
+      profilePicture: imageUrl,
+      teacher,
+    },
+  });
+});
+
 module.exports = {
   createTeacher,
   createQuiz,
@@ -599,4 +639,5 @@ module.exports = {
   getTeacherNotifications,
   getTeacherProfile,
   updateTeacherProfile,
+  uploadTeacherProfilePicture,
 };

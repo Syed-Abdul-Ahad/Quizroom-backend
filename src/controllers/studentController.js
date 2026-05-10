@@ -6,6 +6,7 @@ const AppError = require("../utils/AppError");
 const asyncHandler = require("../utils/asyncHandler");
 const {
   buildGradingStrategy,
+  buildQuestionOrderStrategy,
   gradeQuizAttempt,
 } = require("../patterns/strategy/gradingStrategies");
 const examConfig = require("../patterns/singleton/examConfig");
@@ -104,7 +105,12 @@ const getPublishedQuizById = asyncHandler(async (req, res) => {
     throw new AppError("Published quiz not found", 404);
   }
 
-  const safeQuestions = quiz.questions.map((question) => ({
+  const questionOrderStrategy = buildQuestionOrderStrategy(
+    quiz.strategies?.randomizeQuestions
+  );
+  const orderedQuestions = questionOrderStrategy.apply(quiz.questions);
+
+  const safeQuestions = orderedQuestions.map((question) => ({
     _id: question._id,
     type: question.type,
     prompt: question.prompt,
@@ -301,6 +307,37 @@ const updateStudentProfile = asyncHandler(async (req, res) => {
   });
 });
 
+const uploadStudentProfilePicture = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+
+  if (!req.file) {
+    throw new AppError("No file uploaded", 400);
+  }
+
+  // Construct the full image URL with protocol and host
+  const imageUrl = `${req.protocol}://${req.get('host')}/uploads/profile-pictures/${req.file.filename}`;
+
+  // Update student with new profile picture URL
+  const student = await Student.findByIdAndUpdate(
+    studentId,
+    { profilePicture: imageUrl },
+    { new: true, runValidators: true }
+  );
+
+  if (!student) {
+    throw new AppError("Student not found", 404);
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Profile picture uploaded successfully",
+    data: {
+      profilePicture: imageUrl,
+      student,
+    },
+  });
+});
+
 module.exports = {
   createStudent,
   getPublishedQuizzes,
@@ -311,4 +348,5 @@ module.exports = {
   getStudentNotifications,
   getStudentProfile,
   updateStudentProfile,
+  uploadStudentProfilePicture,
 };

@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const path = require("path");
 
 const AppError = require("./utils/AppError");
 const errorHandler = require("./middlewares/errorHandler");
@@ -14,9 +15,12 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, "../public")));
 
 app.get("/", (req, res) => {
   res.status(200).json({ message: "Welcome to Quizroom backend" });

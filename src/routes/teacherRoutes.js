@@ -1,5 +1,6 @@
 const express = require("express");
 const courseRoutes = require("./courseRoutes");
+const upload = require("../middlewares/uploadMiddleware");
 
 const {
   createTeacher,
@@ -14,6 +15,7 @@ const {
   getTeacherNotifications,
   getTeacherProfile,
   updateTeacherProfile,
+  uploadTeacherProfilePicture,
 } = require("../controllers/teacherController");
 
 const router = express.Router();
@@ -30,6 +32,7 @@ router.get("/:teacherId/quizzes/:quizId/attempts", getQuizAttempts);
 router.patch("/:teacherId/quizzes/:quizId/attempts/:attemptId", updateQuizAttemptReview);
 router.get("/:teacherId/notifications", getTeacherNotifications);
 router.get("/:teacherId/profile", getTeacherProfile);
+router.post("/:teacherId/profile/picture", upload.single('profilePicture'), uploadTeacherProfilePicture);
 router.patch("/:teacherId/profile", updateTeacherProfile);
 
 module.exports = router;

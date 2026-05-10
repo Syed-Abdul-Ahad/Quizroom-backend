@@ -82,7 +82,31 @@ class NegativeMarkingStrategy extends GradingStrategy {
   }
 }
 
+// ========== QUESTION ORDER STRATEGIES ==========
+class QuestionOrderStrategy {
+  apply(questions) {
+    throw new Error("apply() must be implemented by subclass");
+  }
+}
 
+class KeepOrderStrategy extends QuestionOrderStrategy {
+  apply(questions) {
+    return [...questions];
+  }
+}
+
+class RandomizeOrderStrategy extends QuestionOrderStrategy {
+  apply(questions) {
+    const randomized = [...questions];
+
+    for (let i = randomized.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [randomized[i], randomized[j]] = [randomized[j], randomized[i]];
+    }
+
+    return randomized;
+  }
+}
 
 // ========== STRATEGY REGISTRIES (No more if-else!) ==========
 class GradingStrategyRegistry {
@@ -113,10 +137,32 @@ class GradingStrategyRegistry {
   }
 }
 
+class QuestionOrderStrategyRegistry {
+  constructor() {
+    this.strategies = new Map();
+    this.registerDefaults();
+  }
 
+  registerDefaults() {
+    this.register("KEEP_ORDER", new KeepOrderStrategy());
+    this.register("RANDOMIZE", new RandomizeOrderStrategy());
+  }
+
+  register(name, strategy) {
+    if (!strategy || typeof strategy.apply !== "function") {
+      throw new Error("Strategy must implement apply() method");
+    }
+    this.strategies.set(name, strategy);
+  }
+
+  getStrategy(randomize = false) {
+    return randomize ? this.strategies.get("RANDOMIZE") : this.strategies.get("KEEP_ORDER");
+  }
+}
 
 // ========== SINGLETON REGISTRY INSTANCES ==========
 const gradingStrategyRegistry = new GradingStrategyRegistry();
+const questionOrderStrategyRegistry = new QuestionOrderStrategyRegistry();
 
 const normalizeString = (value) => String(value || "").trim().toLowerCase();
 
@@ -141,6 +187,10 @@ const areStringArraysEqual = (first, second) => {
 
 const buildGradingStrategy = (strategyName) => {
   return gradingStrategyRegistry.getStrategy(strategyName || "EXACT_MATCH");
+};
+
+const buildQuestionOrderStrategy = (randomizeQuestions) => {
+  return questionOrderStrategyRegistry.getStrategy(randomizeQuestions);
 };
 
 const gradeQuizAttempt = (quiz, submittedResponses, strategy) => {
@@ -182,5 +232,6 @@ const gradeQuizAttempt = (quiz, submittedResponses, strategy) => {
 
 module.exports = {
   buildGradingStrategy,
+  buildQuestionOrderStrategy,
   gradeQuizAttempt,
 };
